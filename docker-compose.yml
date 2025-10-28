@@ -34,7 +34,7 @@ services:
     environment:
       GF_LOG_LEVEL: debug
       GF_SERVER_HTTP_PORT: 80
-      GF_SECURITY_ADMIN_USER: autocloudarc-ghcd-user
+      GF_SECURITY_ADMIN_USER: demouser
       GF_SECURITY_ADMIN_PASSWORD: Sicherheit@1512
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:80/api/health"]
@@ -55,7 +55,7 @@ services:
     environment:
       ELASTICSEARCH_URL: http://elasticsearch:9200
       GRAFANA_URL: http://grafana:80
-      GRAFANA_USERNAME: autocloudarc-ghcd-user
+      GRAFANA_USERNAME: demouser
       GRAFANA_PASSWORD: Sicherheit@1512
     restart: "no"
 
