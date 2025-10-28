@@ -424,15 +424,21 @@ def generate_grafana_model(grafana_token):
         with open(template_path, "r") as template_file:
             template_content = template_file.read()
 
+        all_data_sources_found = True
         for data_source_name in data_source_names:
             uid = data_sources_name_uid_mapping.get(data_source_name)
             if not uid:
                 logging.error(
-                    f"Data source {data_source_name} not found, you must create it first"
+                    f"Data source {data_source_name} not found for template {template_path}, skipping this template"
                 )
+                all_data_sources_found = False
                 break
             uid_placeholder = f"{data_source_name}-uid"
             template_content = template_content.replace(uid_placeholder, uid)
+
+        # Skip this template if not all data sources were found
+        if not all_data_sources_found:
+            continue
 
         # load template content as json
         try:
@@ -457,7 +463,7 @@ def generate_grafana_model(grafana_token):
             dashboard_models.append(template_content)
 
         except json.JSONDecodeError as e:
-            logging.error(f"Failed to load template content as JSON: {e}")
+            logging.error(f"Failed to load template content as JSON for template {template_path}: {e}")
             raise ValueError("Failed to load template content as JSON")
 
     return dashboard_models
