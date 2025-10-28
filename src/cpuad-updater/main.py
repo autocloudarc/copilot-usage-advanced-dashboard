@@ -750,7 +750,6 @@ class ElasticsearchManager:
                 max_retries=2,
                 retry_on_timeout=True,
                 request_timeout=30,
-                timeout=15,
             )
         else:
             logger.info("Using basic authentication for Elasticsearch")
@@ -761,7 +760,6 @@ class ElasticsearchManager:
                 max_retries=2,
                 retry_on_timeout=True,
                 request_timeout=30,
-                timeout=15,
             )
 
         print(f"[TRACE] Elasticsearch client created, now checking indexes", flush=True)
