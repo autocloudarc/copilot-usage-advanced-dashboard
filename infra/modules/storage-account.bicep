@@ -19,7 +19,9 @@ module storageAccount 'br/public:avm/res/storage/storage-account:0.18.2' = {
     location: location
     skuName: 'Premium_LRS'
     kind: 'FileStorage'
-    tags: tags
+    tags: union(tags, {
+      SecurityControl: 'Ignore'
+    })
     secretsExportConfiguration: {
       keyVaultResourceId: keyVaultResourceId
       accessKey1Name: accessKey1Name
@@ -35,6 +37,10 @@ module storageAccount 'br/public:avm/res/storage/storage-account:0.18.2' = {
         }
       ]
     }
+    // Note: NFS protocol with Azure Files currently has limitations with Entra ID authentication
+    // For production deployments, consider using SMB protocol with AADKERB for better security
+    // Currently keeping shared key access enabled for NFS compatibility
+    allowSharedKeyAccess: true
     roleAssignments: doRoleAssignments ? [
       {
         principalId: userAssignedIdentityPrincipalId

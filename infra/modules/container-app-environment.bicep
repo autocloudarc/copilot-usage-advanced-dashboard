@@ -18,7 +18,7 @@ module containerAppsEnvironment 'br/public:avm/res/app/managed-environment:0.10.
     logAnalyticsWorkspaceResourceId: logAnalyticsWorkspaceResourceId
     name: '${abbrs.appManagedEnvironments}${resourceToken}'
     location: location
-    zoneRedundant: false
+    zoneRedundant: true
     storages: storages
     publicNetworkAccess: publicNetworkAccess
     infrastructureSubnetId: infrastructureSubnetId

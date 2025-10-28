@@ -25,7 +25,9 @@ module vault 'br/public:avm/res/key-vault/vault:0.12.1' = {
       }
     ] : []
     secrets: secrets
-    enablePurgeProtection: false
+    enablePurgeProtection: true
+    enableSoftDelete: true
+    softDeleteRetentionInDays: 90
     tags: tags
   }
 }

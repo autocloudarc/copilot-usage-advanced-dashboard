@@ -1,0 +1,1 @@
+# Elasticsearch uses Docker - no Python dependencies needed

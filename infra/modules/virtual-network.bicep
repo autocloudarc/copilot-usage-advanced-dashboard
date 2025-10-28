@@ -9,6 +9,19 @@ module containerAppsNetworkSecurityGroup 'br/public:avm/res/network/network-secu
     location: location
     securityRules: [
       {
+        name: 'DenyAllInbound'
+        properties: {
+          access: 'Deny'
+          direction: 'Inbound'
+          priority: 4096
+          protocol: '*'
+          sourceAddressPrefix: '*'
+          sourcePortRange: '*'
+          destinationAddressPrefix: '*'
+          destinationPortRange: '*'
+        }
+      }
+      {
         name: 'AllowNFSOutbound'
         properties: {
           access: 'Allow'
@@ -22,6 +35,32 @@ module containerAppsNetworkSecurityGroup 'br/public:avm/res/network/network-secu
             '445'
             '2049'
           ]
+        }
+      }
+      {
+        name: 'AllowHttpsOutbound'
+        properties: {
+          access: 'Allow'
+          direction: 'Outbound'
+          priority: 110
+          protocol: 'Tcp'
+          sourceAddressPrefix: 'VirtualNetwork'
+          sourcePortRange: '*'
+          destinationAddressPrefix: 'Internet'
+          destinationPortRange: '443'
+        }
+      }
+      {
+        name: 'AllowDnsOutbound'
+        properties: {
+          access: 'Allow'
+          direction: 'Outbound'
+          priority: 120
+          protocol: 'Udp'
+          sourceAddressPrefix: 'VirtualNetwork'
+          sourcePortRange: '*'
+          destinationAddressPrefix: 'AzureCloud'
+          destinationPortRange: '53'
         }
       }
     ]
