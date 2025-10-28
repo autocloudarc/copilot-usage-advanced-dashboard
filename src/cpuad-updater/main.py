@@ -246,14 +246,18 @@ class GitHubEnterpriseManager:
 class GitHubOrganizationManager:
 
     def __init__(self, organization_slug, save_to_json=True, is_standalone=False):
+        print(f"[TRACE] GitHubOrganizationManager.__init__ start", flush=True)
         self.slug_type = "Standalone" if is_standalone else "Organization"
         self.api_type = "enterprises" if is_standalone else "orgs"
         self.organization_slug = organization_slug
+        print(f"[TRACE] Fetching all teams (this may take a while)...", flush=True)
         self.teams = self._fetch_all_teams(save_to_json=save_to_json)
+        print(f"[TRACE] Teams fetched: {len(self.teams) if self.teams else 0} teams", flush=True)
         self.utc_offset = get_utc_offset()
         logger.info(
             f"Initialized GitHubOrganizationManager for {self.slug_type}: {organization_slug}"
         )
+        print(f"[TRACE] GitHubOrganizationManager.__init__ complete", flush=True)
 
     def get_copilot_usages(
         self,
@@ -559,11 +563,15 @@ class GitHubOrganizationManager:
         teams = []
         page = 1
         per_page = 50
-        while True:
+        max_pages = 20  # LIMIT to prevent infinite loops on large orgs (20 * 50 = 1000 teams max)
+        print(f"[TRACE] Starting team fetch from {url}, max_pages={max_pages}", flush=True)
+        while page <= max_pages:
             paginated_url = f"{url}?page={page}&per_page={per_page}"
+            print(f"[TRACE] Fetching page {page}...", flush=True)
             page_teams = github_api_request_handler(
                 paginated_url, error_return_value=[]
             )
+            print(f"[TRACE] Page {page} returned {len(page_teams) if page_teams else 0} teams", flush=True)
             logger.info(f"Current page teams count: {len(page_teams)}")
             # if credential is expired, the return value is:
             # {'message': 'Bad credentials', 'documentation_url': 'https://docs.github.com/rest', 'status': '401'}
@@ -573,10 +581,12 @@ class GitHubOrganizationManager:
                 )
                 return []
             if not page_teams:
+                print(f"[TRACE] No more teams found, breaking at page {page}", flush=True)
                 break
             teams.extend(page_teams)
             page += 1
 
+        print(f"[TRACE] Total teams fetched: {len(teams)}, processing...", flush=True)
         teams = self._add_fullpath_slug(teams)
         teams = assign_position_in_tree(teams)
         dict_save_to_json_file(
@@ -585,6 +595,7 @@ class GitHubOrganizationManager:
         logger.info(
             f"Fetching all teams for {self.slug_type}: {self.organization_slug}"
         )
+        print(f"[TRACE] _fetch_all_teams complete with {len(teams)} teams", flush=True)
 
         return teams
 
@@ -729,49 +740,85 @@ class ElasticsearchManager:
 
     def __init__(self, primary_key=Paras.primary_key):
         self.primary_key = primary_key
+        print(f"[TRACE] ElasticsearchManager.__init__ starting", flush=True)
+        print(f"[TRACE] Elasticsearch URL: {Paras.elasticsearch_url}", flush=True)
         if Paras.elasticsearch_user is None or Paras.elasticsearch_pass is None:
             logger.info("Using Elasticsearch without authentication")
+            print(f"[TRACE] Creating Elasticsearch client without authentication", flush=True)
             self.es = Elasticsearch(
-                hosts=Paras.elasticsearch_url,
-                max_retries=3,
+                Paras.elasticsearch_url,
+                max_retries=2,
                 retry_on_timeout=True,
-                request_timeout=60,
+                request_timeout=30,
+                timeout=15,
             )
         else:
             logger.info("Using basic authentication for Elasticsearch")
+            print(f"[TRACE] Creating Elasticsearch client with basic auth", flush=True)
             self.es = Elasticsearch(
-                hosts=Paras.elasticsearch_url,
+                Paras.elasticsearch_url,
                 basic_auth=(Paras.elasticsearch_user, Paras.elasticsearch_pass),
-                max_retries=3,
+                max_retries=2,
                 retry_on_timeout=True,
-                request_timeout=60,
+                request_timeout=30,
+                timeout=15,
             )
 
+        print(f"[TRACE] Elasticsearch client created, now checking indexes", flush=True)
         self.check_and_create_indexes()
+        print(f"[TRACE] ElasticsearchManager.__init__ complete", flush=True)
 
     # Check if all indexes in the indexes are present, and if they don't, they are created based on the files in the mapping folder
     def check_and_create_indexes(self):
+        print(f"[TRACE] check_and_create_indexes() starting", flush=True)
 
-        # try ping for 1 minute
-        for i in range(30):
-            if self.es.ping():
-                logger.info("Elasticsearch is up and running")
-                break
-            else:
-                logger.warning("Elasticsearch is not responding, retrying...")
+        # try ping for 50 seconds max (10 retries * 5 seconds)
+        print(f"[TRACE] Pinging Elasticsearch at {Paras.elasticsearch_url}...", flush=True)
+        ping_successful = False
+        for i in range(10):
+            try:
+                if self.es.ping():
+                    logger.info("Elasticsearch is up and running")
+                    print(f"[TRACE] Elasticsearch ping successful after {i} attempts", flush=True)
+                    ping_successful = True
+                    break
+                else:
+                    print(f"[TRACE] Elasticsearch ping attempt {i+1}/10 returned False", flush=True)
+                    logger.warning("Elasticsearch is not responding, retrying...")
+                    time.sleep(5)
+            except Exception as e:
+                print(f"[TRACE] Elasticsearch ping attempt {i+1}/10 raised exception: {e}", flush=True)
+                logger.warning(f"Elasticsearch ping failed with exception: {e}")
                 time.sleep(5)
+        
+        if not ping_successful:
+            logger.error("Failed to connect to Elasticsearch after 50 seconds")
+            print(f"[TRACE] WARNING: Elasticsearch not responding after 50 seconds, proceeding anyway", flush=True)
 
+        print(f"[TRACE] Creating indexes (if needed)...", flush=True)
         for index_name in Indexes.__dict__:
             if index_name.startswith("index_"):
-                index_name = Indexes.__dict__[index_name]
-                if not self.es.indices.exists(index=index_name):
-                    mapping_file = f"mapping/{index_name}_mapping.json"
-                    with open(mapping_file, "r") as f:
-                        mapping = json.load(f)
-                    self.es.indices.create(index=index_name, body=mapping)
-                    logger.info(f"Created index: {index_name}")
-                else:
-                    logger.info(f"Index already exists: {index_name}")
+                index_name_value = Indexes.__dict__[index_name]
+                print(f"[TRACE] Checking index: {index_name_value}", flush=True)
+                try:
+                    if not self.es.indices.exists(index=index_name_value):
+                        print(f"[TRACE] Index {index_name_value} does not exist, creating...", flush=True)
+                        mapping_file = f"mapping/{index_name_value}_mapping.json"
+                        print(f"[TRACE] Reading mapping file: {mapping_file}", flush=True)
+                        with open(mapping_file, "r") as f:
+                            mapping = json.load(f)
+                        print(f"[TRACE] Creating index {index_name_value} with mapping...", flush=True)
+                        self.es.indices.create(index=index_name_value, body=mapping)
+                        logger.info(f"Created index: {index_name_value}")
+                        print(f"[TRACE] Index {index_name_value} created successfully", flush=True)
+                    else:
+                        logger.info(f"Index already exists: {index_name_value}")
+                        print(f"[TRACE] Index {index_name_value} already exists", flush=True)
+                except Exception as e:
+                    logger.error(f"Error creating index {index_name_value}: {e}")
+                    print(f"[TRACE] ERROR creating index {index_name_value}: {e}", flush=True)
+        
+        print(f"[TRACE] check_and_create_indexes() complete", flush=True)
 
     def write_to_es(self, index_name, data, update_condition=None):
         last_updated_at = current_time()
@@ -811,6 +858,7 @@ class ElasticsearchManager:
 
 
 def main(organization_slug):
+    print(f"[TRACE] main() called with organization_slug={organization_slug}", flush=True)
     logger.info(
         "=========================================================================================================="
     )
@@ -823,13 +871,18 @@ def main(organization_slug):
     slug_type = "Standalone" if is_standalone else "Organization"
     organization_slug = organization_slug.replace("standalone:", "")
 
+    print(f"[TRACE] Creating GitHubOrganizationManager for {slug_type}: {organization_slug}", flush=True)
     logger.info(f"Starting data processing for {slug_type}: {organization_slug}")
     github_org_manager = GitHubOrganizationManager(
         organization_slug, is_standalone=is_standalone
     )
+    print(f"[TRACE] GitHubOrganizationManager created successfully", flush=True)
+    print(f"[TRACE] Creating ElasticsearchManager...", flush=True)
     es_manager = ElasticsearchManager()
+    print(f"[TRACE] ElasticsearchManager created successfully", flush=True)
 
     # Process seat info and settings
+    print(f"[TRACE] Starting seat info & settings retrieval...", flush=True)
     logger.info(
         f"Processing Copilot seat info & settings for {slug_type}: {organization_slug}"
     )
@@ -838,36 +891,47 @@ def main(organization_slug):
         if not is_standalone
         else github_org_manager.get_seat_info_settings_standalone()
     )
+    print(f"[TRACE] Seat info & settings retrieved: {type(data_seat_info_settings)}", flush=True)
     if not data_seat_info_settings:
         logger.warning(
             f"No Copilot seat info & settings found for {slug_type}: {organization_slug}"
         )
     else:
+        print(f"[TRACE] Writing seat info to Elasticsearch...", flush=True)
         es_manager.write_to_es(Indexes.index_seat_info, data_seat_info_settings)
+        print(f"[TRACE] Seat info written successfully", flush=True)
         logger.info(f"Data processing completed for {slug_type}: {organization_slug}")
 
     # Process seat assignments
+    print(f"[TRACE] Starting seat assignments retrieval...", flush=True)
     logger.info(
         f"Processing Copilot seat assignments for {slug_type}: {organization_slug}"
     )
     data_seat_assignments = github_org_manager.get_seat_assignments()
+    print(f"[TRACE] Seat assignments retrieved: {len(data_seat_assignments) if data_seat_assignments else 0} items", flush=True)
     if not data_seat_assignments:
         logger.warning(
             f"No Copilot seat assignments found for {slug_type}: {organization_slug}"
         )
     else:
-        for seat_assignment in data_seat_assignments:
+        print(f"[TRACE] Processing {len(data_seat_assignments)} seat assignments...", flush=True)
+        for idx, seat_assignment in enumerate(data_seat_assignments):
+            print(f"[TRACE] Writing seat assignment {idx}...", flush=True)
             es_manager.write_to_es(
                 Indexes.index_seat_assignments,
                 seat_assignment,
                 update_condition={"is_active_today": 1},
             )
+        print(f"[TRACE] All seat assignments written successfully", flush=True)
         logger.info(f"Data processing completed for {slug_type}: {organization_slug}")
 
     # Process usage data
+    print(f"[TRACE] Starting copilot usage data retrieval...", flush=True)
     copilot_usage_datas = github_org_manager.get_copilot_usages(team_slug="all")
+    print(f"[TRACE] Copilot usage data retrieved: {len(copilot_usage_datas) if copilot_usage_datas else 0} teams", flush=True)
     logger.info(f"Processing Copilot usage data for {slug_type}: {organization_slug}")
     for team_slug, data_with_position in copilot_usage_datas.items():
+        print(f"[TRACE] Processing team: {team_slug}", flush=True)
         logger.info(f"Processing Copilot usage data for team: {team_slug}")
 
         # Expand data
@@ -879,6 +943,7 @@ def main(organization_slug):
             logger.warning(f"No Copilot usage data found for team: {team_slug}")
             continue
 
+        print(f"[TRACE] Creating DataSplitter for team {team_slug}...", flush=True)
         data_splitter = DataSplitter(
             data,
             additional_properties={
@@ -919,11 +984,18 @@ if __name__ == "__main__":
         logger.info(
             f"Starting data processing for organizations: {Paras.organization_slugs}"
         )
+        print(f"[TRACE] Script starting, parsing organization slugs: {Paras.organization_slugs}", flush=True)
         # Split Paras.organization_slugs and process each organization, remember to remove spaces after splitting
         organization_slugs = Paras.organization_slugs.split(",")
+        print(f"[TRACE] Found {len(organization_slugs)} organizations to process", flush=True)
         for organization_slug in organization_slugs:
+            print(f"[TRACE] Processing organization: {organization_slug.strip()}", flush=True)
             main(organization_slug.strip())
+        print(f"[TRACE] All organizations processed successfully", flush=True)
     except Exception as e:
-        logger.error(f"An error occurred: {traceback.format_exc(e)}")
+        print(f"[TRACE] EXCEPTION OCCURRED: {str(e)}", flush=True)
+        print(f"[TRACE] Traceback: {traceback.format_exc()}", flush=True)
+        logger.error(f"An error occurred: {traceback.format_exc()}")
     finally:
         logger.info("-----------------Finished-----------------")
+        print(f"[TRACE] Script finished", flush=True)
