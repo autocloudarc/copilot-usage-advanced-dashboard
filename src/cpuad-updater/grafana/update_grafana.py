@@ -442,11 +442,21 @@ def generate_grafana_model(grafana_token):
 
         # load template content as json
         try:
-            dashboard = json.loads(template_content)
+            dashboard_data = json.loads(template_content)
+            
+            # Handle both wrapped ("dashboard": {...}) and unwrapped formats
+            if "dashboard" in dashboard_data:
+                dashboard = dashboard_data
+                dashboard_obj = dashboard.get("dashboard", {})
+            else:
+                # Wrap the dashboard object for consistency with Grafana API
+                dashboard = {"dashboard": dashboard_data}
+                dashboard_obj = dashboard_data
+            
             # get the id
-            dashboard_id = dashboard.get("dashboard", {}).get("id")
+            dashboard_id = dashboard_obj.get("id")
             # get title
-            dashboard_title = dashboard.get("dashboard", {}).get("title")
+            dashboard_title = dashboard_obj.get("title")
             logging.info(f"Dashboard ID: {dashboard_id}")
             logging.info(f"Dashboard Title: {dashboard_title}")
 
