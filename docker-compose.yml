@@ -69,7 +69,7 @@ services:
       - elasticsearch
     environment:
       GITHUB_PAT: ${GITHUB_PAT}
-      ORGANIZATION_SLUGS: cody-test-org
+      ORGANIZATION_SLUGS: ms-mfg-community
       ELASTICSEARCH_URL: http://elasticsearch:9200
       # Add other environment variables as needed
     restart: "no"
