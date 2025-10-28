@@ -208,8 +208,8 @@ azd env set GH_PAT github_pat_••••••••••••••••�
 azd env set GH_ORGANIZATION_SLUGS ms-mfg-community
 azd env set AZURE_SUBSCRIPTION_ID ••••••••-••••-••••-••••-••••••••••••
 azd env set AZURE_LOCATION eastus2
-azd env set GRAFANA_USERNAME demouser
-azd env set GRAFANA_PASSWORD demouser
+azd env set GRAFANA_USERNAME ••••••••••••••••••••••••
+azd env set GRAFANA_PASSWORD ••••••••••••••••••••••••
 ```
 
 ### Step 2: Basic Deployment (Without Entra ID SSO)
@@ -1351,8 +1351,8 @@ az monitor app-insights query -g <resource-group-name> --app <app-insights-name>
 |----------|----------|---------|---|
 | `GH_PAT` | ✅ Yes | `ghp_xxx...` | GitHub Personal Access Token (fine-grained recommended) |
 | `GH_ORGANIZATION_SLUGS` | ✅ Yes | `my-org` or `org1,org2` | GitHub organization(s) to monitor |
-| `GRAFANA_USERNAME` | ❌ No | `admin` | Grafana admin username (auto-generated if not set) |
-| `GRAFANA_PASSWORD` | ❌ No | `P@ssw0rd!` | Grafana admin password (auto-generated if not set) |
+| `GRAFANA_USERNAME` | ❌ No | `<username>` | Grafana admin username (auto-generated if not set) |
+| `GRAFANA_PASSWORD` | ❌ No | `<password>` | Grafana admin password (auto-generated if not set) |
 | `AZURE_AUTHENTICATION_ENABLED` | ❌ No | `true` or `false` | Enable Entra ID SSO |
 | `AZURE_AUTHENTICATION_CLIENT_ID` | ❌ No | `xxxxxxxx-xxxx...` | Entra ID app registration client ID |
 | `AZURE_AUTHENTICATION_OPEN_ID_ISSUER` | ❌ No | `https://login.microsoftonline.com/...` | Entra ID OpenID issuer URL |
@@ -1400,14 +1400,14 @@ Configure infrastructure via `infra/main.parameters.json`:
 | **GH_ORGANIZATION_SLUGS** | `ms-mfg-community` |
 | **AZURE_SUBSCRIPTION_ID** | `••••••••-••••-••••-••••-••••••••••••` (masked for security) |
 | **AZURE_LOCATION** | `eastus2` |
-| **GRAFANA_USERNAME** | `demouser` |
-| **GRAFANA_PASSWORD** | `demouser` |
+| **GRAFANA_USERNAME** | `••••••••••••••••••••••••` (masked for security) |
+| **GRAFANA_PASSWORD** | `••••••••••••••••••••••••` (masked for security) |
 | **AZURE_ENV_NAME** | `dev` |
 
 ### Deployment Type
 - ✅ **Simple Deployment** (without Entra ID SSO)
 - Single dashboard instance
-- Basic Grafana authentication with demo credentials
+- Basic Grafana authentication with production credentials
 
 ### Azure Resources Provisioned
 
