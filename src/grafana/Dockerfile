@@ -9,8 +9,11 @@ RUN apk update && \
 
 RUN setcap 'cap_net_bind_service=+ep' /usr/share/grafana/bin/grafana-server
 
+# Switch back to grafana user
+USER grafana
+
 # Expose the Grafana port
-EXPOSE 80
+EXPOSE 3000
 
 # Start Grafana
-CMD ["grafana-server", "--volume=grafana-storage:/var/lib/grafana"]
+CMD ["grafana-server"]

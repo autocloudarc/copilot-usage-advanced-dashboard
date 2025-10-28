@@ -380,11 +380,10 @@ def generate_grafana_model(grafana_token):
         "elasticsearch-total",
     ]
 
-    default_template_path = "dashboard-template.json"
-    model_output_path = f'dashboard-model-{datetime.today().strftime("%Y-%m-%d")}.json'
-    mapping_output_path = f'dashboard-model-data_sources_name_uid_mapping-{datetime.today().strftime("%Y-%m-%d")}.json'
-
-    template_path = default_template_path
+    template_paths = [
+        "dashboard-template.json",
+        "dashboard-template-original.json"
+    ]
 
     headers = {
         "Accept": "application/vnd.github+json",
@@ -411,46 +410,57 @@ def generate_grafana_model(grafana_token):
         uid = data_resource["uid"]
         data_sources_name_uid_mapping[name] = uid
 
+    mapping_output_path = f'dashboard-model-data_sources_name_uid_mapping-{datetime.today().strftime("%Y-%m-%d")}.json'
     with open(mapping_output_path, "w") as f:
         json.dump(data_sources_name_uid_mapping, f, indent=4)
 
-    with open(template_path, "r") as template_file:
-        template_content = template_file.read()
+    dashboard_models = []
+    
+    for template_path in template_paths:
+        if not os.path.exists(template_path):
+            logging.warning(f"Template file not found: {template_path}, skipping...")
+            continue
 
-    for data_source_name in data_source_names:
-        uid = data_sources_name_uid_mapping.get(data_source_name)
-        if not uid:
-            logging.error(
-                f"Data source {data_source_name} not found, you must create it first"
-            )
-            break
-        uid_placeholder = f"{data_source_name}-uid"
-        template_content = template_content.replace(uid_placeholder, uid)
+        with open(template_path, "r") as template_file:
+            template_content = template_file.read()
 
-    # load template content as json
-    try:
-        dashboard = json.loads(template_content)
-        # get the id
-        dashboard_id = dashboard.get("dashboard", {}).get("id")
-        # get title
-        dashboard_title = dashboard.get("dashboard", {}).get("title")
-        logging.info(f"Dashboard ID: {dashboard_id}")
-        logging.info(f"Dashboard Title: {dashboard_title}")
+        for data_source_name in data_source_names:
+            uid = data_sources_name_uid_mapping.get(data_source_name)
+            if not uid:
+                logging.error(
+                    f"Data source {data_source_name} not found, you must create it first"
+                )
+                break
+            uid_placeholder = f"{data_source_name}-uid"
+            template_content = template_content.replace(uid_placeholder, uid)
 
-        # change id to null
-        dashboard["dashboard"]["id"] = None
+        # load template content as json
+        try:
+            dashboard = json.loads(template_content)
+            # get the id
+            dashboard_id = dashboard.get("dashboard", {}).get("id")
+            # get title
+            dashboard_title = dashboard.get("dashboard", {}).get("title")
+            logging.info(f"Dashboard ID: {dashboard_id}")
+            logging.info(f"Dashboard Title: {dashboard_title}")
 
-        # updated template content
-        template_content = json.dumps(dashboard, indent=4)
+            # change id to null
+            dashboard["dashboard"]["id"] = None
 
-        with open(model_output_path, "w") as output_file:
-            output_file.write(template_content)
+            # updated template content
+            template_content = json.dumps(dashboard, indent=4)
 
-        return template_content
+            model_output_path = f'dashboard-model-{os.path.basename(template_path).split(".")[0]}-{datetime.today().strftime("%Y-%m-%d")}.json'
+            with open(model_output_path, "w") as output_file:
+                output_file.write(template_content)
 
-    except json.JSONDecodeError as e:
-        logging.error(f"Failed to load template content as JSON: {e}")
-        raise ValueError("Failed to load template content as JSON")
+            dashboard_models.append(template_content)
+
+        except json.JSONDecodeError as e:
+            logging.error(f"Failed to load template content as JSON: {e}")
+            raise ValueError("Failed to load template content as JSON")
+
+    return dashboard_models
 
 
 if __name__ == "__main__":
@@ -465,18 +475,17 @@ if __name__ == "__main__":
 
     logging.info("Successfully added Grafana data sources.")
 
-    logging.info("Generating Grafana dashboard model...")
+    logging.info("Generating Grafana dashboard models...")
 
-    python_script_path = "gen_grafana_model.py"
+    dashboard_models = generate_grafana_model(grafana_token=grafana_token)
 
-    dashboard_model = generate_grafana_model(grafana_token=grafana_token)
+    logging.info("Successfully generated Grafana dashboard models.")
 
-    logging.info("Successfully generated Grafana dashboard model.")
+    logging.info("Importing Grafana dashboards...")
 
-    logging.info("Importing Grafana dashboard...")
+    for dashboard_model in dashboard_models:
+        import_grafana_dashboard(
+            dashboard_model=dashboard_model, grafana_token=grafana_token
+        )
 
-    import_grafana_dashboard(
-        dashboard_model=dashboard_model, grafana_token=grafana_token
-    )
-
-    logging.info("Successfully imported Grafana dashboard.")
+    logging.info("Successfully imported all Grafana dashboards.")
