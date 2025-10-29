@@ -41,7 +41,7 @@ if (-not [bool]::Parse($env:AZD_IS_PROVISIONED)) {
     exit 1
 }
 
-$resourceGroup = $($env:AZURE_RESOURCE_GROUP_NAME)
+$resourceGroup = $($env:AZURE_RESOURCE_GROUP)
 $environment = $($env:AZURE_CONTAINER_APPS_ENVIRONMENT_NAME)
 $jobName = $($env:AZURE_RESOURCE_UPDATE_GRAFANA_NAME)
 $loginServer = $($env:AZURE_CONTAINER_REGISTRY_ENDPOINT)
