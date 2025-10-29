@@ -70,7 +70,7 @@ if ($LASTEXITCODE -ne 0) {
 Write-Host "ACR Task succeeded" -ForegroundColor Green
 
 Write-Host "Updating Azure Container App Job..." -ForegroundColor Green
-az containerapp job update --name $jobName --resource-group $resourceGroup --image $image
+az containerapp job update -n $jobName -g $resourceGroup --image $image
 if ($LASTEXITCODE -ne 0) {
     Write-Host "Container App Job update failed" -ForegroundColor Red
     exit $LASTEXITCODE
@@ -81,7 +81,7 @@ Write-Host "Deployed Azure Container App Job successfully" -ForegroundColor Gree
 
 Write-Host "Starting Azure Container App Job..." -ForegroundColor Green
 
-az containerapp job start --name $jobName --resource-group $resourceGroup 
+az containerapp job start -n $jobName -g $resourceGroup 
 
 if ($LASTEXITCODE -ne 0) {
     Write-Host "Container App Job start failed" -ForegroundColor Red
