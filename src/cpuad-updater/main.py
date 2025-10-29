@@ -86,6 +86,12 @@ def github_api_request_handler(url, error_return_value=[]):
         "X-GitHub-Api-Version": "2022-11-28",
     }
     response = requests.get(url, headers=headers)
+    
+    # Check HTTP status code first
+    if response.status_code != 200:
+        logger.error(f"Request failed with status code {response.status_code}: {response.text}")
+        return error_return_value
+    
     data = response.json()
 
     if isinstance(data, dict) and data.get("status", "200") != "200":
